@@ -25,13 +25,19 @@ def clean_rel_df(rel_df: pd.DataFrame) -> pd.DataFrame:
     return new_df
 
 
-def get_diagnoses(txt_df: pd.DataFrame) -> pd.DataFrame:
+def get_diagnosis(txt_df: pd.DataFrame) -> pd.DataFrame:
     new_df = txt_df.copy()
     new_df['diagnosis'] = txt_df.text.map(lambda x: text_utils.get_category(x, ('Discharge Diagnosis',
                                                                                 'Discharge Diagnoses',
                                                                                 'Final Discharge Diagnosis',
                                                                                 'Final Discharge Diagnoses')))
     return new_df.dropna()
+
+
+def get_primary_diagnosis(txt_df: pd.DataFrame) -> pd.DataFrame:
+    new_df = txt_df.copy()
+    new_df['primary_diagnosis'] = txt_df.diagnosis.map(lambda x: text_utils.find_primary_diagnoses(x))
+    return new_df
 
 
 def get_history(txt_df: pd.DataFrame) -> pd.DataFrame:
@@ -48,6 +54,20 @@ def get_complaint(txt_df: pd.DataFrame) -> pd.DataFrame:
 
 def split_txt_df(txt_df: pd.DataFrame) -> pd.DataFrame:
     new_df = txt_df.copy()
-    for category in ['diagnoses', 'history', 'complaint']:
+    categories = ['diagnosis', 'primary_diagnosis', 'history', 'complaint']
+    for category in categories:
         new_df = globals()[f'get_{category}'](new_df)
+    new_df[categories] = new_df[categories].replace('\n', ' ', regex=True)
+    return new_df
+
+
+def get_underlying_factors(txt_df: pd.DataFrame, ent_df: pd.DataFrame) -> pd.DataFrame:
+    new_df = txt_df.copy()
+    func = lambda x: text_utils.find_factors(x['file_idx'],
+                                             ent_df,
+                                             x['diagnosis'],
+                                             x['primary_diagnosis'],
+                                             x['history'],
+                                             x['complaint'])
+    new_df['underlying_factors'] = txt_df.apply(func, axis=1)
     return new_df
