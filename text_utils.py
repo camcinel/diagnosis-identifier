@@ -1,8 +1,9 @@
 import pandas as pd
-from typing import Tuple
+from typing import Tuple, Union, List
+from nlp import DiseaseSearcher
 
 
-def contains_category(text: str, category: Tuple[str, ...]) -> str | None:
+def contains_category(text: str, category: Tuple[str, ...]) -> Union[str, None]:
     category += tuple([x.upper() for x in category])
 
     lines = text.split('\n')
@@ -13,7 +14,7 @@ def contains_category(text: str, category: Tuple[str, ...]) -> str | None:
     return None
 
 
-def get_category(text: str, category: Tuple[str, ...]) -> str | None:
+def get_category(text: str, category: Tuple[str, ...]) -> Union[str, None]:
     category += tuple([x.upper() for x in category])
 
     categories = text.split('\n\n')
@@ -29,41 +30,24 @@ def get_category(text: str, category: Tuple[str, ...]) -> str | None:
 
 
 def find_primary_diagnoses(diagnosis: str) -> str:
-    if diagnosis.lower().startswith('primary'):
-        primary_diagnosis = diagnosis.split('\n')[1].strip('0123456789.- )')
-    else:
-        primary_diagnosis = diagnosis.split('\n')[0].strip('0123456789.- )')
-
-    return primary_diagnosis.split(',')[0]
+    if 'secondary' not in diagnosis.lower():
+        return diagnosis.lower().strip()
+    primary_diagnosis = diagnosis.lower().split('secondary')[0]
+    primary_diagnosis = primary_diagnosis.strip().strip('primary').strip().strip('diagnosis').strip().strip(':')
+    return primary_diagnosis
 
 
 def find_factors(
-        file_idx: str,
-        ent_df: pd.DataFrame,
         diagnosis: str,
-        primary_diagnosis: str,
         history: str,
-        complaint: str
-) -> str | None:
-    relevant_entities = set()
-
-    entities = ent_df[(ent_df.category == 'Reason') & (ent_df.file_idx == file_idx)]
-
+        complaint: str,
+        primary_diseases: List[str],
+        searcher: DiseaseSearcher
+) -> List[str]:
     if not history:
         history = ''
     if not complaint:
         complaint = ''
 
-    if len(entities) == 0:
-        return None
-
-    for entity in entities.text:
-        if entity.lower() in primary_diagnosis.lower():
-            continue
-        elif entity in diagnosis.lower() + ' ' + history.lower() + ' ' + complaint.lower():
-            relevant_entities.add(entity)
-
-    if len(relevant_entities) == 0:
-        return None
-
-    return ', '.join(relevant_entities)
+    full_context = diagnosis.lower() + ' ' + history.lower() + ' ' + complaint.lower()
+    return searcher.get_factors(full_context, primary_diseases)

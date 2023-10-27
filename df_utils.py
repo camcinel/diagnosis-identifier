@@ -1,5 +1,7 @@
 import pandas as pd
 import text_utils
+from nlp import DiseaseSearcher
+from typing import List
 
 
 def fix_slashes(df: pd.DataFrame) -> pd.DataFrame:
@@ -36,19 +38,19 @@ def get_diagnosis(txt_df: pd.DataFrame) -> pd.DataFrame:
 
 def get_primary_diagnosis(txt_df: pd.DataFrame) -> pd.DataFrame:
     new_df = txt_df.copy()
-    new_df['primary_diagnosis'] = txt_df.diagnosis.map(lambda x: text_utils.find_primary_diagnoses(x))
+    new_df['primary_diagnosis'] = new_df.diagnosis.map(lambda x: text_utils.find_primary_diagnoses(x))
     return new_df
 
 
 def get_history(txt_df: pd.DataFrame) -> pd.DataFrame:
     new_df = txt_df.copy()
-    new_df['history'] = txt_df.text.map(lambda x: text_utils.get_category(x, ('History of Present Illness',)))
+    new_df['history'] = new_df.text.map(lambda x: text_utils.get_category(x, ('History of Present Illness',)))
     return new_df
 
 
 def get_complaint(txt_df: pd.DataFrame) -> pd.DataFrame:
     new_df = txt_df.copy()
-    new_df['complaint'] = txt_df.text.map(lambda x: text_utils.contains_category(x, ('Chief Complaint',)))
+    new_df['complaint'] = new_df.text.map(lambda x: text_utils.contains_category(x, ('Chief Complaint',)))
     return new_df
 
 
@@ -61,13 +63,38 @@ def split_txt_df(txt_df: pd.DataFrame) -> pd.DataFrame:
     return new_df
 
 
-def get_underlying_factors(txt_df: pd.DataFrame, ent_df: pd.DataFrame) -> pd.DataFrame:
+def get_primary_diseases(txt_df: pd.DataFrame, searcher: DiseaseSearcher) -> pd.DataFrame:
     new_df = txt_df.copy()
-    func = lambda x: text_utils.find_factors(x['file_idx'],
-                                             ent_df,
-                                             x['diagnosis'],
-                                             x['primary_diagnosis'],
-                                             x['history'],
-                                             x['complaint'])
-    new_df['underlying_factors'] = txt_df.apply(func, axis=1)
+    new_df['primary_diseases'] = new_df.primary_diagnosis.map(lambda x: searcher.get_diseases(x))
     return new_df
+
+
+def get_underlying_factors(txt_df: pd.DataFrame, searcher: DiseaseSearcher) -> pd.DataFrame:
+    new_df = txt_df.copy()
+    new_df['underlying_factors'] = new_df \
+        .apply(lambda x: text_utils.find_factors(
+            x['primary_diagnosis'],
+            x['history'],
+            x['complaint'],
+            x['primary_diseases'],
+            searcher
+        ),
+        axis=1
+    )
+    return new_df
+
+
+def create_disease_df(txt_df: pd.DataFrame) -> pd.DataFrame:
+    disease_dict = {}
+    for index, row in txt_df[['primary_diseases', 'underlying_factors']].iterrows():
+        diseases, factors = row.primary_diseases, row.underlying_factors
+        for disease in diseases:
+            if disease not in disease_dict:
+                disease_dict[disease] = set(factors)
+            else:
+                disease_dict[disease] = disease_dict[disease].union(set(factors))
+    disease_dict = {key: list(value) for key, value in disease_dict.items()}
+    return pd.DataFrame({
+        'disease': disease_dict.keys(),
+        'factors': disease_dict.values()
+    })
