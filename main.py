@@ -7,25 +7,111 @@ from typing import Tuple, List
 
 
 class DiagnosisDetector:
+    """
+    A detector for diagnoses from text linked to a diagnoses and factors database'
+
+    Attributes:
+        db: DiagnosisDatabase
+            A database of diagnoses and factors with linked NER model
+    """
     def __init__(self, database: DiagnosisDatabase):
+        """
+        Initialized the DiagnosisDetector with the given DiagnosisDatabase instance
+
+        Parameters
+        ----------
+        database: DiagnosisDatabase
+            A database of diagnoses and factors with linked NER model
+        """
         self.db = database
 
     def give_diagnosis(self, text: str, print_out: bool = False) -> dict[str: str]:
+        """
+        Give diagnoses and factors extracted from the text of a clinical note
+
+        Parameters
+        ----------
+        text: str
+            The text of a clinical note
+        print_out: bool (default=False)
+            If true, print out the results in a nice format
+
+        Returns
+        -------
+        dict[str: str]
+            A dictionary whose keys are primary diagnosis disease canonical names
+            and whose values are the canonical names of factors extracted from the note
+            that correspond to this disease
+
+        """
         primary_disease, factors = self.extract_diseases_and_factors(text)
         return self.get_diagnosis_and_factors(primary_disease, factors, print_out)
 
     def extract_diseases_and_factors(self, text: str) -> Tuple[List[str], List[str]]:
+        """
+        Procedure to extract the canonical names of the primary diagnoses and
+        the underlying factors in the text of a clinical note
+
+        Parameters
+        ----------
+        text: str
+            The text of a clinical note
+
+        Returns
+        -------
+        Tuple[str, str]
+            A tuple of two strings:
+                1. The list of the canonical names of the primary diagnoses
+                2. The list of the canonical names of the underlying factors
+
+        """
+        # extract relevant sections from the clinical note
         diagnosis, history, complaint = self.find_contexts(text)
+
+        # find the primary diagnosis
         primary_diagnosis = text_utils.find_primary_diagnoses(diagnosis)
+
+        # extract the canonical names of diseases in the primary diagnosis
         primary_diseases = self.db.searcher.get_diseases(primary_diagnosis)
+
+        # extract all other diseases in the relevant section
         factors = text_utils.find_factors(diagnosis, history, complaint, primary_diseases, self.db.searcher)
         return primary_diseases, factors
 
     def get_diagnosis_and_factors(self, primary_diseases: List[str], factors: List[str], print_out: bool = False) -> dict[str: str]:
+        """
+        For each diagnosis, find the relevant factors and compare them to the known factors in the database
+
+        Parameters
+        ----------
+        primary_diseases: List[str]
+            List of canonical names of diseases in the primary diagnosis
+        factors: List[str]
+            List of canonical names of other factors inside the clinical note
+        print_out: bool (default=False)
+            If true, print out the results in a nice format
+
+        Returns
+        -------
+        dict[str: str]
+            A dictionary whose keys are primary diagnosis disease canonical names
+            and whose values are the canonical names of factors extracted from the note
+            that correspond to this disease
+
+        """
+
+        # create dictionary to store disease and corresponding factors
         disease_factor_dict = {}
+
+        # iterate through primary_diseases
         for disease in primary_diseases:
+            # find the factors for the disease in the database
             underlying_factors = self.db.find_factors(disease)
+
+            # find the intersection of factors in the database and factors in the clinical note
             relevant_factors = [factor for factor in underlying_factors if factor in factors]
+
+            # store factors
             disease_factor_dict[disease] = relevant_factors
 
         if print_out:
