@@ -3,6 +3,12 @@ from typing import Tuple, Union, List
 from nlp import DiseaseSearcher
 
 
+def load_text(file_path: str) -> str:
+    with open(file_path, 'r') as file:
+        text = file.read()
+    return text
+
+
 def contains_category(text: str, category: Tuple[str, ...]) -> Union[str, None]:
     category += tuple([x.upper() for x in category])
 
@@ -33,7 +39,7 @@ def find_primary_diagnoses(diagnosis: str) -> str:
     if 'secondary' not in diagnosis.lower():
         return diagnosis.lower().strip()
     primary_diagnosis = diagnosis.lower().split('secondary')[0]
-    primary_diagnosis = primary_diagnosis.strip().strip('primary').strip().strip('diagnosis').strip().strip(':')
+    primary_diagnosis = primary_diagnosis.strip()
     return primary_diagnosis
 
 

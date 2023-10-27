@@ -1,7 +1,6 @@
 import pandas as pd
-import text_utils
+from utils import text_utils
 from nlp import DiseaseSearcher
-from typing import List
 
 
 def fix_slashes(df: pd.DataFrame) -> pd.DataFrame:
@@ -59,7 +58,6 @@ def split_txt_df(txt_df: pd.DataFrame) -> pd.DataFrame:
     categories = ['diagnosis', 'primary_diagnosis', 'history', 'complaint']
     for category in categories:
         new_df = globals()[f'get_{category}'](new_df)
-    new_df[categories] = new_df[categories].replace('\n', ' ', regex=True)
     return new_df
 
 

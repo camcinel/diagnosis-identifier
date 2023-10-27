@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import df_utils
+from utils import df_utils
 import load_data
 from nlp import DiseaseSearcher
 from typing import List
@@ -41,18 +41,7 @@ class DiagnosisDatabase:
 
         disease = self.searcher.linker.kb.cui_to_entity[entity._.kb_ents[0][0]].canonical_name
 
-        return self.database.loc[self.database.disease == disease].factors.values[0]
-
-
-if __name__ == '__main__':
-    db = DiagnosisDatabase('data', 'en_ner_bc5cdr_md')
-    print(db.find_factors('pneumonia'))
-    print(db.find_factors('pulmonary embolism'))
-    pneumonia_factors = db.find_factors('pneumonia')
-    counter = {}
-    for factor in pneumonia_factors:
-        if factor not in counter:
-            counter[factor] = 1
-        else:
-            counter[factor] += 1
-    print([factor for factor, count in counter.items() if count > 1])
+        try:
+            return self.database.loc[self.database.disease == disease].factors.values[0]
+        except IndexError:
+            return ['']
