@@ -146,12 +146,13 @@ if __name__ == '__main__':
 
     db = DiagnosisDatabase('data', 'en_ner_bc5cdr_md')
 
-    disease = ' '.join(sys.argv[1:])
-    print(f'Underlying Factors for {disease}:')
-    factors = db.find_factors(disease)
+    diseases = [' '.join(x.split('_')) for x in sys.argv[1:]]
+    for disease in diseases:
+        print(f'Underlying Factors for {disease}:')
+        factors = db.find_factors(disease)
 
-    if not factors:
-        print('Disease not found in database')
+        if not factors:
+            print('Disease not found in database')
 
-    for index, factor in enumerate(factors):
-        print(f'{index}. {factor}')
+        for index, factor in enumerate(factors):
+            print(f'{index}. {factor}')
